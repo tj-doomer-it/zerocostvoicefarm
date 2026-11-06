@@ -1,78 +1,107 @@
-# zerocostvoicefarm
+# 🎙️ zerocostvoicefarm
 
-Standalone, zero-cloud-cost CLI and Python package for local multilingual video dubbing and voice cloning on Apple Silicon and CUDA hardware.
+> **Zero-cloud-cost multilingual video dubbing and voice cloning.**  
+> Transcribe, translate, clone your own voice with XTTS-v2, duck background audio, and remux video locally on Apple Silicon and CUDA. Zero subscriptions. Zero cloud bills.
 
-Built to replace recurring subscriptions to proprietary dubbing services (such as ElevenLabs Dubbing Studio), **`zerocostvoicefarm`** extracts audio from source video or voice clips, performs timestamped speech-to-text with OpenAI Whisper, translates dialogue across 17 languages, clones the speaker's vocal timbre using Coqui XTTS-v2, and masters the final dialogue back into the video with dynamic audio ducking and lossless stream remuxing.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Hardware: Apple Silicon](https://img.shields.io/badge/Compute-Apple%20Silicon%20M--Series-orange.svg)]()
+[![Cost: $0](https://img.shields.io/badge/Cloud%20Cost-%240.00-brightgreen.svg)]()
 
 ---
 
-## Architecture & Workflow
+## ☕ Why I Built This
+
+I make photography vlogs for YouTube ([*Surf the Chaos*](https://www.youtube.com)), walking around Melbourne shooting street photos on 35mm film with vintage cameras (Leicas, Canon rangefinders, Olympus Mju).
+
+When I wanted to dub my videos into Japanese, French, Spanish, and German for people overseas, I looked at commercial tools like ElevenLabs Dubbing Studio. They wanted recurring monthly subscriptions, credit meters, and hundreds of dollars to process 10-minute videos.
+
+That seemed crazy when modern Macs have plenty of compute sitting idle.
+
+So I built **`zerocostvoicefarm`**: a standalone, zero-cost CLI that runs 100% locally on your machine. Give it a video and a 10-second reference clip of your voice, and it handles the entire chain:
+1. Listens to the original video and extracts timestamped lines via **OpenAI Whisper**.
+2. Translates the dialogue to the target language and calculates cut window constraints.
+3. Clones your vocal identity into fluent foreign speech using **Coqui XTTS-v2**.
+4. Dynamically speeds up foreign lines with FFmpeg's `atempo` if the translation runs longer than the video cut.
+5. Smoothly ducks original background audio (music, city ambience, shutter clicks) to 18% during dialogue.
+6. Masters the audio at broadcast True Peak (-1.0 dB) and remuxes the video losslessly.
+
+You get a finished video ready to upload to YouTube with multi-language audio tracks, and it costs exactly zero dollars.
+
+---
+
+## ⚡ Architecture Flow
 
 ```
-Source Video (.m4v / .mp4)
-       │
-       ▼
-[1. Transcriber] ──► OpenAI Whisper (CPU / MPS / CUDA)
-       │              └─ Timestamped dialogue segments (.json, .srt, .vtt)
-       ▼
-[2. Translation]  ──► Zero-cost Neural Machine Translation (GTX / Local JSON)
-       │              └─ Calculates cut window bounds (max_duration)
-       ▼
-[3. Voice Cloner] ──► Coqui XTTS-v2 (Cloned from reference .wav)
-       │              └─ Dynamic tempo adjustment (FFmpeg atempo up to 1.5x)
-       ▼
-[4. Audio Master] ──► Background Audio Ducking (18% level, 200ms in / 300ms out)
-       │              ├─ Polyphase Resampling (24 kHz -> 48 kHz standard)
-       │              ├─ Stereo placement & True-Peak normalization (-1.0 dB)
-       │              └─ Lossless video remux (-c:v copy)
-       ▼
-Dubbed Master Video (.m4v / .mp4)
+                Source Video (.m4v / .mp4)
+                           │
+                           ▼
+ ┌──────────────────────────────────────────────────┐
+ │ 1. Whisper Transcription (CPU / MPS / CUDA)     │
+ │    Extracts dialogue segments with timestamps   │
+ └─────────────────────────┬────────────────────────┘
+                           │
+                           ▼
+ ┌──────────────────────────────────────────────────┐
+ │ 2. Translation & Window Mapping                 │
+ │    Zero-cost NMT + calculates cut constraints   │
+ └─────────────────────────┬────────────────────────┘
+                           │
+                           ▼
+ ┌──────────────────────────────────────────────────┐
+ │ 3. XTTS-v2 Voice Cloning & Tempo Fitting        │
+ │    Clones vocal timbre from voice_reference.wav │
+ │    Paces audio via FFmpeg atempo (up to 1.5x)   │
+ └─────────────────────────┬────────────────────────┘
+                           │
+                           ▼
+ ┌──────────────────────────────────────────────────┐
+ │ 4. Audio Ducking, Mastering & Video Remux       │
+ │    Ducks background to 18% (200ms in / 300ms out)│
+ │    Polyphase resampling: 24 kHz -> 48 kHz       │
+ │    Lossless video bitstream remux (-c:v copy)   │
+ └─────────────────────────┬────────────────────────┘
+                           │
+                           ▼
+             Dubbed Master Video (.m4v / .mp4)
 ```
 
 ---
 
-## Key Features & Engineering Design
+## 🛠️ Key Engineering Features
 
-- **100% Zero Cloud Cost:** Runs entirely on local compute. No ElevenLabs, OpenAI, or Google Cloud API subscriptions required.
-- **Apple Silicon Hardware Acceleration:** Automatically routes OpenAI Whisper to CPU/MPS and Coqui XTTS-v2 to CPU. On Apple M-series chips, CPU execution leverages vectorized Apple Accelerate kernels for stable, fast (~0.2-0.5x real-time) synthesis without GPU MPS kernel crashes.
-- **PyTorch 2.6+ Compatibility:** Ships with built-in runtime patches for PyTorch 2.6+ `weights_only=False` checkpoint unpickling and macOS torchaudio soundfile backend bindings.
-- **Dynamic Cut Pacing (FFmpeg atempo):** Automatically calculates segment boundaries (`max_duration = next_start - current_start`). If translated foreign dialogue exceeds its cut window, it accelerates playback cleanly (up to 1.5x) without pitch distortion.
-- **Broadcast Audio Mastering:** Ducks original background audio down to 18% during dialogue, places mono voice across stereo, normalizes True Peak to -1.0 dB, and encodes 256 kbps AAC tracks.
-- **Lossless Video Remuxing:** Replaces original audio while copying video bitstreams verbatim (`-c:v copy`), preserving 100% video quality with near-instant export.
-
----
-
-## Supported Foreign Languages
-
-Supports all 17 official Coqui XTTS-v2 languages:
-
-| Code | Language | Code | Language |
-| :--- | :--- | :--- | :--- |
-| `en` | English | `es` | Spanish |
-| `fr` | French | `de` | German |
-| `it` | Italian | `pt` | Portuguese |
-| `pl` | Polish | `tr` | Turkish |
-| `ru` | Russian | `nl` | Dutch |
-| `cs` | Czech | `ar` | Arabic |
-| `zh-cn` | Chinese (Simplified) | `ja` | Japanese |
-| `hu` | Hungarian | `ko` | Korean |
-| `hi` | Hindi | | |
+- **Built for Apple Silicon:** Runs XTTS-v2 on Apple Silicon M-series CPU using vectorized Apple Accelerate kernels (~0.4-0.5x real-time speed, rock-solid stability). Bypasses PyTorch MPS kernel limitations that cause GPU tensor NaNs in Coqui TTS.
+- **PyTorch 2.6+ Checkpoint Patch:** Ships with automatic monkey-patches for PyTorch 2.6+ unpickling (`weights_only=False`) and macOS torchaudio soundfile backend bindings.
+- **Dynamic Cut Pacing (`atempo`):** Different languages have different syllable counts (Spanish and Japanese dialogue often run 25% longer than English). If a translated phrase exceeds its cut window (`max_duration = next_start - current_start`), it automatically accelerates playback cleanly without pitch shift.
+- **Preserves Video Ambience:** Doesn't discard original audio. Background music, street noise, and room tone are smoothly ducked down during speech and ramped back up during silent pauses.
+- **Lossless Video Remuxing:** Copies the original video stream verbatim (`-c:v copy`), meaning 4K video exports in under a second without quality degradation.
 
 ---
 
-## Prerequisites & Installation
+## 🌍 Supported Foreign Languages (17 Languages)
 
-### 1. System Requirements
+Supports all 17 official Coqui XTTS-v2 target languages:
 
-- **FFmpeg:** Installed and available on your `PATH`.
-  ```bash
-  brew install ffmpeg
-  ```
-- **Python:** Python 3.10 or 3.11 recommended.
+| Code | Language | Code | Language | Code | Language |
+| :---: | :--- | :---: | :--- | :---: | :--- |
+| `ja` | 🇯🇵 Japanese | `fr` | 🇫🇷 French | `es` | 🇪🇸 Spanish |
+| `de` | 🇩🇪 German | `it` | 🇮🇹 Italian | `ko` | 🇰🇷 Korean |
+| `pt` | 🇵🇹 Portuguese | `pl` | 🇵🇱 Polish | `tr` | 🇹🇷 Turkish |
+| `ru` | 🇷🇺 Russian | `nl` | 🇳🇱 Dutch | `cs` | 🇨🇿 Czech |
+| `ar` | 🇸🇦 Arabic | `zh-cn`| 🇨🇳 Chinese (Simp.) | `hu` | 🇭🇺 Hungarian |
+| `hi` | 🇮🇳 Hindi | `en` | 🇬🇧 English | | |
+
+---
+
+## 🚀 Quickstart
+
+### 1. Requirements
+
+- macOS (Apple Silicon recommended) or Linux with CUDA.
+- **FFmpeg:** `brew install ffmpeg`
+- **Python:** 3.10 or 3.11.
 
 ### 2. Install Package
-
-Clone the repository and install in editable mode:
 
 ```bash
 git clone https://github.com/tj-doomer-it/zerocostvoicefarm.git ~/zerocostvoicefarm
@@ -80,71 +109,78 @@ cd ~/zerocostvoicefarm
 pip install -e .
 ```
 
-This registers the `voicefarm` executable in your active environment.
-
----
-
-## CLI Usage Guide
-
-The unified `voicefarm` CLI exposes four commands:
-
-### 1. Inspect Hardware & Supported Languages (`presets`)
-
-Detects host CPU architecture, RAM, PyTorch accelerator availability, and XTTS model cache status:
+Verify your hardware compute routing:
 
 ```bash
 voicefarm presets
 ```
 
-### 2. Zero-Cost Voice Cloning (`clone`)
+---
 
-Clone vocal timbre from a short reference WAV (10-30 seconds of clean speech) and render a custom phrase:
+## 💻 CLI Usage
 
-```bash
-voicefarm clone \
-  --ref ./data/voice_reference.wav \
-  --text "Bonjour, je teste le clonage vocal gratuit sur Apple Silicon." \
-  --lang fr \
-  --out ./output/french_sample.wav
-```
+### Command 1: End-to-End Video Dubbing (`dub`)
 
-### 3. Speech-to-Text Transcription (`transcribe`)
-
-Extract audio from a video or audio file, transcribe with Whisper, and output structured JSON, SRT, VTT, and TXT:
+The flagship command. Takes your video and a 10-30 second WAV sample of your voice, transcribes it, translates it, clones your voice in the target language, ducks the background audio, and muxes everything into a new video:
 
 ```bash
-voicefarm transcribe /path/to/video.m4v --model small --out-dir ./transcripts
+voicefarm dub ./my_vlog.m4v \
+  --target-lang ja \
+  --ref ./voice_reference.wav \
+  --out ./my_vlog_japanese.m4v
 ```
 
-Outputs:
-- `./transcripts/<name>_segments.json`: Structured segment boundaries with timestamps.
-- `./transcripts/<name>.srt`: SubRip subtitle track.
-- `./transcripts/<name>.vtt`: WebVTT subtitle track.
-- `./transcripts/<name>.txt`: Plaintext transcript.
-
-### 4. End-to-End Multilingual Video Dubbing (`dub`)
-
-Runs the full pipeline (transcribe -> translate -> clone -> duck audio -> remux video):
-
-```bash
-voicefarm dub /path/to/video.m4v \
-  --target-lang fr \
-  --ref ./data/voice_reference.wav \
-  --out ./output/video_french_dubbed.m4v
-```
-
-#### Optional Flags:
-- `--translations <path.json>`: Bypass auto-translation by supplying a pre-translated JSON segment file.
-- `--model <small|medium|base>`: Choose Whisper model size (default: `small`).
-- `--duck-level <float>`: Background audio volume multiplier during speech (default: `0.18`).
-- `--work-dir <path>`: Specify custom workspace for caching audio stems.
-- `--keep-temp`: Keep intermediate segment files for manual inspection.
+#### Handy Options:
+- `--translations ./translated_script.json`: Supply pre-translated lines (e.g. reviewed by a native speaker or translated by an LLM) to bypass auto-translation.
+- `--model small`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`).
+- `--duck-level 0.18`: Background audio volume during dialogue (0.18 = 18%).
+- `--keep-temp`: Keeps intermediate audio stems for inspection or manual DAW mixing.
 
 ---
 
-## Python API Usage
+### Command 2: Direct Voice Cloning (`clone`)
 
-You can also import and compose `zerocostvoicefarm` components directly in Python:
+Want to generate a quick speech sample in your cloned voice without running a whole video?
+
+```bash
+voicefarm clone \
+  --ref ./voice_reference.wav \
+  --text "よし、春がやってきて、とても晴れて気持ちがいいので、街に出てきました。" \
+  --lang ja \
+  --out ./japanese_sample.wav
+```
+
+---
+
+### Command 3: Whisper Transcription & Subtitle Export (`transcribe`)
+
+Transcribes any video or audio file and writes timestamped JSON segments, SRT subtitles, WebVTT files, and plaintext transcripts:
+
+```bash
+voicefarm transcribe ./my_vlog.m4v --model small --out-dir ./subtitles
+```
+
+Outputs:
+- `./subtitles/my_vlog_segments.json` (Structured timestamps and segment IDs)
+- `./subtitles/my_vlog.srt` (SubRip format with millisecond commas)
+- `./subtitles/my_vlog.vtt` (WebVTT format for web players)
+- `./subtitles/my_vlog.txt` (Full dialogue transcript)
+
+---
+
+### Command 4: Inspect System & Presets (`presets`)
+
+Prints an instant diagnostic report of your local hardware, detected compute targets, and FFmpeg version:
+
+```bash
+voicefarm presets
+```
+
+---
+
+## 🐍 Python Library API
+
+You can also use `zerocostvoicefarm` as a standard Python library in your own creative tools:
 
 ```python
 from zerocostvoicefarm import (
@@ -154,37 +190,37 @@ from zerocostvoicefarm import (
     AudioMasterer,
 )
 
-# 1. Transcribe
+# 1. Transcribe dialogue
 transcriber = Transcriber(model_name="small")
-result = transcriber.transcribe("input_video.m4v")
+transcript = transcriber.transcribe("street_photos.m4v")
 
-# 2. Map timing and translate
-translated_segs = TranslationMapper.translate_segments(
-    result["segments"],
-    target_lang="es",
+# 2. Map timing windows & translate to French
+translated = TranslationMapper.translate_segments(
+    transcript["segments"],
+    target_lang="fr",
 )
 
-# 3. Clone and tempo-fit
+# 3. Clone voice with dynamic tempo fitting
 cloner = VoiceCloner()
 segs_with_audio = cloner.synthesize_segments(
-    translated_segs,
-    speaker_wav="voice_reference.wav",
-    language="es",
+    translated,
+    speaker_wav="voice_ref.wav",
+    language="fr",
     cache_dir="/tmp/dub_cache",
 )
 
-# 4. Master and remux
+# 4. Master audio track and remux video
 masterer = AudioMasterer(duck_level=0.18)
 masterer.run_mastering_pipeline(
-    source_media_path="input_video.m4v",
+    source_media_path="street_photos.m4v",
     segments_with_audio=segs_with_audio,
-    output_path="video_spanish_dubbed.m4v",
+    output_path="street_photos_french.m4v",
     work_dir="/tmp/dub_cache",
 )
 ```
 
 ---
 
-## License
+## 📜 License
 
-MIT License.
+MIT License. Built for creators, photographers, and independent filmmakers.
