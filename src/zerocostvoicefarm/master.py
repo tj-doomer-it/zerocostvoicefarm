@@ -87,8 +87,13 @@ class AudioMasterer:
         bg_audio_path: str,
         segments_with_audio: List[Dict[str, Any]],
         output_master_wav: str,
+        isolated_voice: bool = False,
     ) -> str:
-        """Apply dynamic ducking envelope, overlay dialogue, and normalize master peaks."""
+        """Apply dynamic ducking envelope, overlay dialogue, and normalize master peaks.
+
+        If isolated_voice is True (or duck_level == 0.0), original background audio
+        is completely muted to deliver a crystal-clear isolated translated voice track.
+        """
         # 1. Load background audio
         bg_audio, sr_bg = sf.read(bg_audio_path, dtype="float32")
         if bg_audio.ndim == 1:
@@ -153,7 +158,10 @@ class AudioMasterer:
                     )
 
         # 3. Combine ducked background and voice overlay
-        mixed = bg_audio * duck_envelope[:, None] + voice_track
+        if isolated_voice or self.duck_level == 0.0:
+            mixed = voice_track
+        else:
+            mixed = bg_audio * duck_envelope[:, None] + voice_track
 
         # 4. True-peak normalization to target dB
         target_linear = 10.0 ** (self.target_peak_db / 20.0)  # e.g. -1.0 dB = ~0.891
@@ -207,6 +215,7 @@ class AudioMasterer:
         segments_with_audio: List[Dict[str, Any]],
         output_path: str,
         work_dir: str,
+        isolated_voice: bool = False,
     ) -> str:
         """Execute complete mastering and remuxing sequence."""
         os.makedirs(work_dir, exist_ok=True)
@@ -216,8 +225,8 @@ class AudioMasterer:
         # 1. Extract background
         self.extract_audio_track(source_media_path, bg_wav)
 
-        # 2. Duck and mix
-        self.duck_and_mix(bg_wav, segments_with_audio, master_wav)
+        # 2. Duck and mix (or isolate voice)
+        self.duck_and_mix(bg_wav, segments_with_audio, master_wav, isolated_voice=isolated_voice)
 
         # 3. Determine if target output is audio-only or video container
         ext = os.path.splitext(output_path)[1].lower()

@@ -44,6 +44,8 @@ Commercial tools often wipe the original audio track, replacing natural video am
 
 `zerocostvoicefarm` extracts and preserves your background music, street Foley, shutter clicks, and room tone. It applies a dual-ramp audio ducking envelope that smoothly attenuates original audio to 18% volume during dialogue (200ms ease-in) and ramps it back up during natural pauses (300ms ease-out), normalized to -1.0 dB True Peak.
 
+*If you don't want this, an isolated voice track (`--isolated-voice` or `--duck-level 0.0`) will give you crystal-clear translated audio with zero background bleed.*
+
 ---
 
 ## 🤖 Native MCP Server for AI Agents
@@ -69,7 +71,7 @@ Add `voicefarm` to your agent's MCP configuration (`~/.claude/settings.json`, `c
 
 | Tool Name | Parameters | Description |
 | :--- | :--- | :--- |
-| `voicefarm_dub` | `video_path`, `target_lang`, `speaker_ref`, `output_path`, `translations`, `model`, `duck_level` | Runs the full autonomous dubbing and video remuxing pipeline. |
+| `voicefarm_dub` | `video_path`, `target_lang`, `speaker_ref`, `output_path`, `translations`, `model`, `duck_level`, `isolated_voice` | Runs the full autonomous dubbing and video remuxing pipeline. |
 | `voicefarm_clone` | `text`, `speaker_ref`, `language`, `output_wav` | Clones vocal identity from reference audio and generates foreign speech. |
 | `voicefarm_transcribe` | `media_path`, `model`, `out_dir` | Transcribes video/audio with Whisper and writes JSON, SRT, VTT, and TXT files. |
 | `voicefarm_presets` | None | Returns supported languages and diagnostic local hardware acceleration status. |
@@ -176,6 +178,7 @@ voicefarm dub ./my_vlog.m4v \
 - `--translations ./translated_script.json`: Supply pre-translated lines (e.g. reviewed by a native speaker or translated by an LLM) to bypass auto-translation.
 - `--model small`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`).
 - `--duck-level 0.18`: Background audio volume during dialogue (0.18 = 18%).
+- `--isolated-voice`: Completely mutes background audio to output an isolated translated voice track.
 - `--keep-temp`: Keeps intermediate audio stems for inspection or manual DAW mixing.
 
 ---

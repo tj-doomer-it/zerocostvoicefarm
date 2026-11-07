@@ -142,6 +142,8 @@ def transcribe_cmd(media_path: str, model: str, out_dir: str, prompt: Optional[s
               help="Background volume multiplier during speech (0.18 = 18%).")
 @click.option("--work-dir", default=None, type=click.Path(file_okay=False),
               help="Scratch workspace for temporary stems and cached segments.")
+@click.option("--isolated-voice", is_flag=True, default=False,
+              help="Mute background audio to output a crystal-clear isolated translated voice track.")
 @click.option("--keep-temp", is_flag=True, default=False, help="Retain temporary audio stems after completion.")
 def dub_cmd(
     video_path: str,
@@ -152,6 +154,7 @@ def dub_cmd(
     model: str,
     duck_level: float,
     work_dir: Optional[str],
+    isolated_voice: bool,
     keep_temp: bool,
 ):
     """Run the end-to-end pipeline (transcribe -> translate -> clone -> duck audio -> remux video)."""
@@ -234,7 +237,10 @@ def dub_cmd(
         console.print(f"  Voice synthesis completed in {time.time() - t_clone:.2f}s.")
 
         # Step 4: Mastering, Ducking & Remuxing
-        console.print(f"[bold cyan][4/4][/bold cyan] Ducking background audio ({int(duck_level*100)}%), mixing stereo master, and remuxing video...")
+        if isolated_voice:
+            console.print("[bold cyan][4/4][/bold cyan] Rendering crystal-clear isolated translated voice track (background muted)...")
+        else:
+            console.print(f"[bold cyan][4/4][/bold cyan] Ducking background audio ({int(duck_level*100)}%), mixing stereo master, and remuxing video...")
         t_master = time.time()
         masterer = AudioMasterer(duck_level=duck_level)
         final_file = masterer.run_mastering_pipeline(
@@ -242,6 +248,7 @@ def dub_cmd(
             segments_with_audio=segments_with_audio,
             output_path=output_path,
             work_dir=scratch_dir,
+            isolated_voice=isolated_voice,
         )
         console.print(f"  Mastering & remux completed in {time.time() - t_master:.2f}s.")
 

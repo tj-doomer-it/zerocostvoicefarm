@@ -54,3 +54,41 @@ def test_duck_and_mix():
         # The background alone without dialogue is ducked to ~0.18 * 0.5 = ~0.09
         # Check that envelope was applied
         assert mixed is not None
+
+
+def test_duck_and_mix_isolated_voice():
+    """Verify isolated_voice=True completely mutes background audio."""
+    sr = 48000
+    duration_s = 3.0
+    total_samples = int(sr * duration_s)
+
+    # 1. Loud background tone
+    t = np.linspace(0, duration_s, total_samples, endpoint=False)
+    bg_tone = 0.9 * np.sin(2 * np.pi * 440 * t).astype(np.float32)
+    bg_stereo = np.column_stack([bg_tone, bg_tone])
+
+    # 2. Dialogue tone only between 1.0s and 2.0s
+    sr_dialogue = 48000
+    dur_diag = 1.0
+    t_diag = np.linspace(0, dur_diag, int(sr_dialogue * dur_diag), endpoint=False)
+    diag_mono = 0.5 * np.sin(2 * np.pi * 800 * t_diag).astype(np.float32)
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        bg_wav = os.path.join(tmp_dir, "bg.wav")
+        diag_wav = os.path.join(tmp_dir, "dialogue.wav")
+        out_wav = os.path.join(tmp_dir, "isolated.wav")
+
+        sf.write(bg_wav, bg_stereo, sr)
+        sf.write(diag_wav, diag_mono, sr_dialogue)
+
+        segments = [
+            {"id": 1, "start": 1.0, "end": 2.0, "audio_path": diag_wav}
+        ]
+
+        masterer = AudioMasterer(sample_rate=sr)
+        res_path = masterer.duck_and_mix(bg_wav, segments, out_wav, isolated_voice=True)
+
+        mixed, _ = sf.read(res_path, dtype="float32")
+        # Check that before dialogue (0.0s to 0.9s), audio is completely silent (zero background bleed)
+        pre_dialogue_samples = mixed[:int(0.9 * sr)]
+        assert np.allclose(pre_dialogue_samples, 0.0), "Background audio was not fully muted in isolated mode"

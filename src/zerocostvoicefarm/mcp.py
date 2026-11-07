@@ -68,6 +68,7 @@ def create_mcp_server():
         translations: Optional[str] = None,
         model: str = DEFAULT_WHISPER_MODEL,
         duck_level: float = DEFAULT_DUCK_LEVEL,
+        isolated_voice: bool = False,
     ) -> str:
         """Run the full autonomous dubbing pipeline for an agent."""
         if not os.path.isfile(video_path):
@@ -118,6 +119,7 @@ def create_mcp_server():
                 segments_with_audio=segs_with_audio,
                 output_path=output_path,
                 work_dir=scratch_dir,
+                isolated_voice=isolated_voice,
             )
 
             elapsed = round(time.time() - t0, 2)
