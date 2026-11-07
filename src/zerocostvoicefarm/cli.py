@@ -293,6 +293,18 @@ def presets_cmd():
     console.print(lang_table)
 
 
+# -------------------------------------------------------------------------
+# Command 5: MCP
+# -------------------------------------------------------------------------
+@cli.command("mcp")
+@click.option("--transport", default="stdio", show_default=True,
+              type=click.Choice(["stdio", "sse"]), help="Transport protocol.")
+def mcp_cmd(transport: str):
+    """Run the Model Context Protocol (MCP) server for AI coding agents."""
+    from zerocostvoicefarm.mcp import run_mcp_server
+    run_mcp_server(transport=transport)
+
+
 def main():
     """Main binary entrypoint."""
     cli()

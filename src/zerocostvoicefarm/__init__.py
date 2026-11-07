@@ -13,6 +13,7 @@ from zerocostvoicefarm.transcribe import Transcriber
 from zerocostvoicefarm.translate import TranslationMapper
 from zerocostvoicefarm.clone import VoiceCloner
 from zerocostvoicefarm.master import AudioMasterer
+from zerocostvoicefarm.mcp import create_mcp_server, run_mcp_server
 
 __all__ = [
     "__version__",
@@ -25,4 +26,6 @@ __all__ = [
     "TranslationMapper",
     "VoiceCloner",
     "AudioMasterer",
+    "create_mcp_server",
+    "run_mcp_server",
 ]

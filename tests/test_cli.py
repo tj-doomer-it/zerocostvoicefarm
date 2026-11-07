@@ -5,7 +5,7 @@ from zerocostvoicefarm.cli import cli
 
 
 def test_cli_help():
-    """Verify main CLI help displays all four required commands."""
+    """Verify main CLI help displays all required commands including mcp."""
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
@@ -13,6 +13,7 @@ def test_cli_help():
     assert "transcribe" in result.output
     assert "dub" in result.output
     assert "presets" in result.output
+    assert "mcp" in result.output
 
 
 def test_cli_presets():
