@@ -69,6 +69,7 @@ def create_mcp_server():
         model: str = DEFAULT_WHISPER_MODEL,
         duck_level: float = DEFAULT_DUCK_LEVEL,
         isolated_voice: bool = False,
+        max_speed: float = 1.5,
     ) -> str:
         """Run the full autonomous dubbing pipeline for an agent."""
         if not os.path.isfile(video_path):
@@ -110,6 +111,7 @@ def create_mcp_server():
                 language=lang_code,
                 cache_dir=scratch_dir,
                 text_key="target_text",
+                max_speed_factor=max_speed,
             )
 
             # 3. Audio ducking and video remuxing

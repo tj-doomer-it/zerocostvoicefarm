@@ -140,6 +140,8 @@ def transcribe_cmd(media_path: str, model: str, out_dir: str, prompt: Optional[s
               help="Whisper model size for transcription.")
 @click.option("--duck-level", default=DEFAULT_DUCK_LEVEL, show_default=True, type=float,
               help="Background volume multiplier during speech (0.18 = 18%).")
+@click.option("--max-speed", default=1.5, show_default=True, type=float,
+              help="Maximum audio speedup factor for cut-window fitting (e.g. 1.2 to 2.0). Speeds above 1.5x may sound rushed or altered.")
 @click.option("--work-dir", default=None, type=click.Path(file_okay=False),
               help="Scratch workspace for temporary stems and cached segments.")
 @click.option("--isolated-voice", is_flag=True, default=False,
@@ -153,6 +155,7 @@ def dub_cmd(
     translations: Optional[str],
     model: str,
     duck_level: float,
+    max_speed: float,
     work_dir: Optional[str],
     isolated_voice: bool,
     keep_temp: bool,
@@ -161,6 +164,9 @@ def dub_cmd(
     lang_code = target_lang.lower().strip()
     base_name = os.path.splitext(os.path.basename(video_path))[0]
     ext = os.path.splitext(video_path)[1] or ".m4v"
+
+    if max_speed > 1.5:
+        console.print(f"[yellow]Notice:[/yellow] Maximum tempo speedup is set to {max_speed:.2f}x. Note: Speeds above 1.5x may cause speech to sound rushed or slightly altered.")
 
     if output_path is None:
         output_path = f"{base_name}_{lang_code}_dubbed{ext}"
@@ -232,6 +238,7 @@ def dub_cmd(
             language=lang_code,
             cache_dir=scratch_dir,
             text_key="target_text",
+            max_speed_factor=max_speed,
             progress_callback=on_segment_done,
         )
         console.print(f"  Voice synthesis completed in {time.time() - t_clone:.2f}s.")

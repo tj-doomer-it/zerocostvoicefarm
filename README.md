@@ -179,6 +179,7 @@ voicefarm dub ./my_vlog.m4v \
 - `--model small`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`).
 - `--duck-level 0.18`: Background audio volume during dialogue (0.18 = 18%).
 - `--isolated-voice`: Completely mutes background audio to output an isolated translated voice track.
+- `--max-speed 1.5`: Maximum audio tempo factor for cut fitting (e.g. 1.2 to 2.0). Note: Speeds above 1.5x may sound rushed or slightly altered.
 - `--keep-temp`: Keeps intermediate audio stems for inspection or manual DAW mixing.
 
 ---
